@@ -1,0 +1,43 @@
+
+services:
+  db:
+    image: mysql:8.0
+    container_name: salessavy-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: "${MYSQL_DATABASE}"
+      MYSQL_ROOT_PASSWORD: "${MYSQL_ROOT_PASSWORD}"
+      MYSQL_USER: "${MYSQL_USER}"
+      MYSQL_PASSWORD: "${MYSQL_PASSWORD}"
+    ports:
+      - "3307:3306"
+    volumes:
+      - salessavy_mysql_data:/var/lib/mysql
+      - ./docker/mysql/init/01-salessavy.sql:/docker-entrypoint-initdb.d/01-salessavy.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h localhost -uroot -p\"$$MYSQL_ROOT_PASSWORD\" --silent"]
+      interval: 10s
+      timeout: 5s
+      retries: 15
+
+  app:
+    build: .
+    container_name: salessavy-app-docker
+    restart: unless-stopped
+    ports:
+      - "9090:9090"
+    environment:
+      SPRING_DATASOURCE_URL: "jdbc:mysql://db:3306/${MYSQL_DATABASE}"
+      SPRING_DATASOURCE_USERNAME: "${MYSQL_USER}"
+      SPRING_DATASOURCE_PASSWORD: "${MYSQL_PASSWORD}"
+      SPRING_JPA_HIBERNATE_DDL_AUTO: "update"
+      JWT_SECRET: "${JWT_SECRET}"
+      JWT_EXPIRATION: "${JWT_EXPIRATION}"
+      RAZORPAY_KEY_ID: "${RAZORPAY_KEY_ID}"
+      RAZORPAY_KEY_SECRET: "${RAZORPAY_KEY_SECRET}"
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  salessavy_mysql_data:
